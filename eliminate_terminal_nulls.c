@@ -59,11 +59,12 @@ main (int    argument_count,
 
          case '?':
             /* getopt_long already printed an error message. */
+            exit (1);
             break;
 
          default:
-            printf ("Aborting.\n");
-            abort ();
+            fprintf (stderr, "Unrecognized option: -%c\n", getopt_result);
+            exit (1);
         }
     }
 
