@@ -96,9 +96,7 @@ eliminate_terminal_nulls (char* pathname)
     int           result      = (int)0;
     struct stat   status_buffer;
 
-    /* printf ("TRACE: open(\"%s\") ... ", pathname); */
-    /* fflush (stdout); */
-    descriptor = open (pathname, /* O_RDONLY */ O_RDWR | O_LARGEFILE);
+    descriptor = open (pathname, O_RDWR | O_LARGEFILE);
     if (descriptor < 0)
     {
         perror ("open(2): ");
@@ -106,10 +104,7 @@ eliminate_terminal_nulls (char* pathname)
                  __FILE__, __LINE__);
         exit (1);
     }
-    /* printf ("done.\n"); */
 
-    /* printf ("TRACE: fstat(%d) ... ", descriptor); */
-    /* fflush (stdout); */
     if (fstat (descriptor, &status_buffer) != 0)
     {
         perror ("fstat(2): ");
@@ -117,10 +112,8 @@ eliminate_terminal_nulls (char* pathname)
                  __FILE__, __LINE__);
         exit (1);
     }
-    /* printf ("done.\n"); */
 
     file_bytes = status_buffer.st_size;
-    /* printf ("file_bytes = %ld\n", file_bytes); */
 
     /* This is a quick-n-dirty solution that presumes a relatively
      * small number of terminal NUL characters. It might outright fail
@@ -128,10 +121,7 @@ eliminate_terminal_nulls (char* pathname)
      */
     while (! done)
     {
-        /* printf ("TRACE: lseek(%d) ... ", descriptor); */
-        /* fflush (stdout); */
         offset = lseek (descriptor, -1 - null_count, SEEK_END);
-        /* printf ("done.\n"); */
         if (offset < 0)
         {
             perror ("lseek(2): ");
@@ -140,10 +130,7 @@ eliminate_terminal_nulls (char* pathname)
             exit (1);
         }
 
-        /* printf ("TRACE: read(%d) ... ", descriptor); */
-        /* fflush (stdout); */
         read_result = read (descriptor, (void*)(&character), 1);
-        /* printf ("done.\n"); */
         if (read_result < 0)
         {
             perror ("read(2): ");
@@ -153,8 +140,6 @@ eliminate_terminal_nulls (char* pathname)
         }
         if (character == ((unsigned char)0))
         {
-            /* printf ("character is NUL.\n"); */
-
             ++null_count;
             if (null_count == file_bytes)
             {
@@ -163,7 +148,6 @@ eliminate_terminal_nulls (char* pathname)
         }
         else
         {
-            /* printf ("character is non-null.\n"); */
             done = 1;
         }
     }
@@ -171,8 +155,6 @@ eliminate_terminal_nulls (char* pathname)
     {
         result = 1;
 
-        /* printf ("TRACE: ftruncate(%d,%d) ... ", descriptor, (int)file_bytes - (int)null_count); */
-        /* fflush (stdout); */
         if (ftruncate (descriptor, file_bytes - null_count) != 0)
         {
             perror ("ftruncate(2): ");
@@ -180,11 +162,8 @@ eliminate_terminal_nulls (char* pathname)
                      __FILE__, __LINE__);
             exit (1);
         }
-        /* printf ("done.\n"); */
     }
 
-    /* printf ("TRACE: close(%d) ... ", descriptor); */
-    /* fflush (stdout); */
     if (close (descriptor) < 0)
     {
         perror ("close(2): ");
@@ -192,7 +171,6 @@ eliminate_terminal_nulls (char* pathname)
                  __FILE__, __LINE__);
         exit (1);
     }
-    /* printf ("done.\n"); */
 
     return result;
 }
