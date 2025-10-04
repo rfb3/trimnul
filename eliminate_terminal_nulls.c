@@ -1,18 +1,18 @@
-/* eliminate_terminal_nulls.c - truncates any NUL (0) bytes off end of file */
+// eliminate_terminal_nulls.c - truncates any NUL (0) bytes off end of file
 
-/* Table of Contents */
+// Table of Contents
 
-/* eliminate_terminal_nulls.c - truncates any NUL (0) bytes off end of file */
-/* Table of Contents */
-/* Headers, etc */
-/* Function prototypes */
-/* eliminate_terminal_nulls(char*) */
-/* fstat_or_fail (int,struct stat*) */
-/* main(int,char*) */
-/* open_or_fail(char*,int) */
-/* scan_block(int,char*,size_t) */
+// eliminate_terminal_nulls.c - truncates any NUL (0) bytes off end of file
+// Table of Contents
+// Headers, etc
+// Function prototypes
+// eliminate_terminal_nulls(char*)
+// fstat_or_fail (int,struct stat*)
+// main(int,char*)
+// open_or_fail(char*,int)
+// scan_block(int,char*,size_t)
 
-/* Headers, etc */
+// Headers, etc
 
 #define _LARGEFILE64_SOURCE
 
@@ -27,7 +27,7 @@
 #include <sys/stat.h>
 #include <sys/types.h>
 
-/* Function prototypes */
+// Function prototypes
 
 static
 int
@@ -54,7 +54,7 @@ scan_block (int    descriptor,
             char*  block,
             size_t size);
 
-/* eliminate_terminal_nulls(char*) */
+// eliminate_terminal_nulls(char*)
 
 static
 int
@@ -144,7 +144,7 @@ eliminate_terminal_nulls (char* pathname)
     return result;
 }
 
-/* fstat_or_fail (int,struct stat*) */
+// fstat_or_fail (int,struct stat*)
 
 static
 int
@@ -163,7 +163,7 @@ fstat_or_fail (int          descriptor,
     return result;
 }
 
-/* main(int,char*) */
+// main(int,char*)
 
 int
 main (int    argument_count,
@@ -229,7 +229,7 @@ main (int    argument_count,
     return 0;
 }
 
-/* open_or_fail(char*,int) */
+// open_or_fail(char*,int)
 
 static
 int
@@ -248,7 +248,7 @@ open_or_fail (char* pathname,
     return result;
 }
 
-/* scan_block(int,char*,size_t) */
+// scan_block(int,char*,size_t)
 
 static
 int
