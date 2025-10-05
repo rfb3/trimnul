@@ -1,6 +1,10 @@
+//
 // eliminate_terminal_nulls.c - truncates any NUL (0) bytes off end of file
+//
 
+//
 // Table of Contents
+//
 
 // eliminate_terminal_nulls.c - truncates any NUL (0) bytes off end of file
 // Table of Contents
@@ -12,7 +16,9 @@
 // open_or_fail(char*,int)
 // scan_block(int,char*,size_t)
 
+//
 // Headers, etc
+//
 
 #define _LARGEFILE64_SOURCE
 
@@ -27,7 +33,9 @@
 #include <sys/stat.h>
 #include <sys/types.h>
 
+//
 // Function prototypes
+//
 
 static
 int
@@ -54,7 +62,9 @@ scan_block (int    descriptor,
             char*  block,
             size_t size);
 
+//
 // eliminate_terminal_nulls(char*)
+//
 
 static
 int
@@ -78,13 +88,8 @@ eliminate_terminal_nulls (char* pathname)
     file_complete_block_count = file_bytes / file_block_size;
     file_last_block_size      = file_bytes % file_block_size;
 
+    // Could create a SEGV handler to detect error state
     block = (char*)(alloca (file_block_size));
-    if (block == ((char*)NULL))
-    {
-        fprintf (stderr, "%s:%d: In eliminate_terminal_nulls, alloca(3) failed.\n",
-                 __FILE__, __LINE__);
-        exit (1);
-    }
 
     if (file_last_block_size != 0)
     {
@@ -144,7 +149,9 @@ eliminate_terminal_nulls (char* pathname)
     return result;
 }
 
+//
 // fstat_or_fail (int,struct stat*)
+//
 
 static
 int
@@ -163,7 +170,9 @@ fstat_or_fail (int          descriptor,
     return result;
 }
 
+//
 // main(int,char*)
+//
 
 int
 main (int    argument_count,
@@ -229,7 +238,9 @@ main (int    argument_count,
     return 0;
 }
 
+//
 // open_or_fail(char*,int)
+//
 
 static
 int
@@ -248,7 +259,9 @@ open_or_fail (char* pathname,
     return result;
 }
 
+//
 // scan_block(int,char*,size_t)
+//
 
 static
 int
