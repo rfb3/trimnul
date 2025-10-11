@@ -100,6 +100,7 @@ eliminate_terminal_nulls (char* pathname)
      *       For now, this has the semantics that I want and is unlikely to overflow the stack.
      */
     block = (char*)(alloca (file_block_size));
+
     if (file_last_block_size != 0)
     {
         int scan_result
