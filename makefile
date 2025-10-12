@@ -10,7 +10,8 @@ eliminate_terminal_nulls:	eliminate_terminal_nulls.o
 	$(LINK.c) -o eliminate_terminal_nulls eliminate_terminal_nulls.o
 
 clean:
-	$(RM) eliminate_terminal_nulls eliminate_terminal_nulls.o *~ \#*
+	$(RM) foo bar baz\
+          eliminate_terminal_nulls eliminate_terminal_nulls.o *~ \#*
 
 install:	eliminate_terminal_nulls
 	install eliminate_terminal_nulls ~/bin
