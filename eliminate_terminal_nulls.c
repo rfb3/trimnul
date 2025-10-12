@@ -10,11 +10,18 @@
 // Table of Contents
 // Headers, etc
 // Function prototypes
-// eliminate_terminal_nulls(char*)
-// fstat_or_fail (int,struct stat*)
-// main(int,char*)
-// open_or_fail(char*,int)
-// scan_block(int,char*,size_t)
+// close_or_fail
+// cursor_append
+// eliminate_terminal_nulls
+// fstat_or_fail
+// ftruncate_or_fail
+// lseek_or_fail
+// lseek_whence_to_string
+// open_flags_to_string - non-reentrant / static state
+// main
+// open_or_fail
+// read_or_fail
+// scan_block
 
 //
 // Headers, etc
@@ -26,12 +33,17 @@
 
 #include <alloca.h>
 #include <fcntl.h>
+#include <stdbool.h>
+#include <stdint.h>
 #include <stdio.h>
 #include <stdlib.h>
+#include <string.h>
 #include <unistd.h>
 
 #include <sys/stat.h>
 #include <sys/types.h>
+
+#define OPEN_FLAGS_TO_STRING_BUFFER_SIZE (1024)
 
 //
 // Function prototypes
@@ -39,6 +51,16 @@
 
 static
 int
+close_or_fail (int descriptor);
+
+static
+char*
+cursor_append(char* cursor,
+              char* text,
+              int*  remaining_pointer);
+
+static
+bool
 eliminate_terminal_nulls (char* pathname);
 
 static
@@ -46,9 +68,24 @@ int
 fstat_or_fail (int          descriptor,
                struct stat* status);
 
+static
+int
+ftruncate_or_fail (int   descriptor,
+                   off_t length);
+
+static
+off_t
+lseek_or_fail (int   descriptor,
+               off_t offset,
+               int   whence);
+
 int
 main (int    argument_count,
       char** argument_vector);
+
+static
+const char*
+open_flags_to_string (int flags);
 
 static
 int
@@ -57,27 +94,92 @@ open_or_fail (char* pathname,
 
 static
 int
+read_or_fail (int    descriptor,
+              void*  block,
+              size_t count);
+
+static
+off_t
 scan_block (int    descriptor,
-            int    offset,
+            off_t  offset,
             char*  block,
             size_t size);
+
+static
+const char*
+lseek_whence_to_string (int whence);
 
 //
-// eliminate_terminal_nulls(char*)
+// close_or_fail
 //
 
 static
 int
+close_or_fail (int descriptor)
+{
+    int result = close (descriptor);
+
+    if (result < 0)
+    {
+        perror ("close(2): ");
+        fprintf (stderr, "%s:%d: In eliminate_terminal_nulls,"
+                 " close(descriptor=%d) failed, returning %d.\n",
+                 __FILE__, __LINE__,
+                 descriptor, result);
+        exit (1);
+    }
+
+    return result;
+}
+
+//
+// cursor_append
+//
+
+static
+char*
+cursor_append(char* cursor,
+              char* text,
+              int*  remaining_pointer)
+{
+    char* result      = cursor;
+    int   text_length = strlen (text);
+
+    if (text_length <= (*remaining_pointer))
+    {
+        (void)snprintf (result, *remaining_pointer, "%s", text);
+        result += text_length;
+        (*remaining_pointer) -= text_length;
+        
+    }
+    else
+    {
+        fprintf (stderr, "cursor_append: Out of buffer space\n");
+        fprintf (stderr, "%s:%d: cursor_append("
+                 "cursor=\"%s\",text=\"%s\",remaining=%d)",
+                 __FILE__, __LINE__, cursor, text, *remaining_pointer);
+    }
+
+    return result;
+}
+
+//
+// eliminate_terminal_nulls
+//
+
+static
+bool
 eliminate_terminal_nulls (char* pathname)
 {
     char*         block                     = (char*)NULL;
     int           descriptor                = (int)0;
-    off_t         file_block_size           = 0;
-    off_t         file_bytes                = 0;
-    int           file_complete_block_count = 0;
-    int           file_last_block_size      = 0;
-    int           null_offset               = 0;
-    int           result                    = (int)0;
+    blksize_t     file_block_size           = (off_t)0;
+    off_t         file_bytes                = (off_t)0;
+
+    uint_fast64_t file_complete_block_count = (uint_fast64_t)0;
+    size_t        file_last_block_size      = (int)0;
+    off_t         null_offset               = (off_t)(-1);
+    bool          result                    = false;
     struct stat   status_buffer;
 
     descriptor = open_or_fail (pathname, O_RDWR | O_LARGEFILE);
@@ -88,9 +190,20 @@ eliminate_terminal_nulls (char* pathname)
     file_complete_block_count = file_bytes / file_block_size;
     file_last_block_size      = file_bytes % file_block_size;
 
-    // Could create a SEGV handler to detect error state
+    // Note: alloca(3) does not have typical error semantics. Potential
+    //       updates include:
+    //        - use malloc(3)
+    //        - hard code an array at least as big as the biggest realistic
+    //          value of st_blksize
+    //        - hard code 4096 instead of st_blksize
+    //        - add a SEGV handler around the use of the block buffer
+    //
+    //       For now, this has the semantics that I want and is unlikely to
+    //       overflow the stack.
+    //
     block = (char*)(alloca (file_block_size));
 
+    // See if the last non-null is in an incomplete final block of the file
     if (file_last_block_size != 0)
     {
         int scan_result
@@ -98,59 +211,48 @@ eliminate_terminal_nulls (char* pathname)
                           file_block_size * file_complete_block_count,
                           block,
                           file_last_block_size);
-        if (scan_result > 0)
+        if (scan_result >= 0)
         {
-            null_offset = scan_result;
+            null_offset
+                = file_block_size * file_complete_block_count + scan_result;
         }
     }
 
-    if (null_offset == 0)
+    // Otherwise walk backward looking for 
+    if (null_offset < 0)
     {
-        int block_index = 0;
+        int_fast64_t block_index = 0;
 
         for (block_index = file_complete_block_count - 1;
              block_index >= 0;
-             ++block_index)
+             --block_index)
         {
             int scan_result = scan_block (descriptor,
                                           block_index * file_block_size,
                                           block,
                                           file_block_size);
-            if (scan_result > 0)
+            if (scan_result >= 0)
             {
                 null_offset = scan_result;
                 break;
             }
-        
         }
     }
 
     if (null_offset != file_bytes)
     {
-        result = 1;
+        result = true;
 
-        if (ftruncate (descriptor, null_offset) != 0)
-        {
-            perror ("ftruncate(2): ");
-            fprintf (stderr, "%s:%d: In eliminate_terminal_nulls, ftruncate(2) failed.\n",
-                     __FILE__, __LINE__);
-            exit (1);
-        }
+        (void)ftruncate_or_fail (descriptor, null_offset);
     }
 
-    if (close (descriptor) < 0)
-    {
-        perror ("close(2): ");
-        fprintf (stderr, "%s:%d: In eliminate_terminal_nulls, close(2) failed.\n",
-                 __FILE__, __LINE__);
-        exit (1);
-    }
+    (void)close_or_fail (descriptor);
 
     return result;
 }
 
 //
-// fstat_or_fail (int,struct stat*)
+// fstat_or_fail
 //
 
 static
@@ -163,15 +265,145 @@ fstat_or_fail (int          descriptor,
     if (result != 0)
     {
         perror ("fstat(2): ");
-        fprintf (stderr, "%s:%d: In fstat_or_fail, fstat(2) failed.\n",
-                 __FILE__, __LINE__);
+        fprintf (stderr, "%s:%d: In fstat_or_fail, fstat(descriptor=%d"
+                 ",status=0x%lX) failed, returning %d.\n",
+                 __FILE__, __LINE__,
+                 descriptor, (intptr_t)status, result);
         exit (1);
     }
     return result;
 }
 
 //
-// main(int,char*)
+// ftruncate_or_fail
+//
+
+static
+int
+ftruncate_or_fail (int   descriptor,
+                   off_t length)
+{
+    int result = ftruncate (descriptor, length);
+
+    if (result != 0)
+    {
+        perror ("ftruncate(2): ");
+        fprintf (stderr, "%s:%d: In ftruncate_or_fail, ftruncate("
+                 "descriptor=%d,length=%ld) failed, returning %d.\n",
+                 __FILE__, __LINE__, descriptor, length, result);
+        exit (1);
+    }
+    return result;
+}
+
+//
+// lseek_or_fail
+//
+
+static
+off_t
+lseek_or_fail (int   descriptor,
+               off_t offset,
+               int   whence)
+{
+    off_t result = lseek (descriptor, offset, whence);
+
+    if (result != offset)
+    {
+        perror ("lseek(2): ");
+        fprintf (stderr, "%s:%d: In lseek_or_fail, lseek(descriptor=%d"
+                 ",offset=%ld,whence=\"%s\") failed, returning %ld.\n",
+                 __FILE__, __LINE__, descriptor, offset,
+                 lseek_whence_to_string (whence), result);
+        exit (1);
+    }
+    return result;
+}
+
+//
+// lseek_whence_to_string
+//
+
+static
+const char*
+lseek_whence_to_string (int whence)
+{
+    const char* result = "<unknown whence>";
+    switch (whence)
+    {
+     case SEEK_SET:
+        result = "SEEK_SET";
+        break;
+     case SEEK_CUR:
+        result = "SEEK_CUR";
+        break;
+     case SEEK_END:
+        result = "SEEK_END";
+        break;
+    }
+    return result;
+}
+
+//
+// open_flags_to_string - non-reentrant / static state
+//
+
+#define MAYBE_APPEND_FLAG(FLAG)                                 \
+if ((flags & (FLAG)) != 0)                                      \
+{                                                               \
+    if (is_first)                                               \
+    {                                                           \
+        is_first = false;                                       \
+    }                                                           \
+    else                                                        \
+    {                                                           \
+        cursor = cursor_append (cursor, "|", &remaining);       \
+    }                                                           \
+    cursor = cursor_append (cursor, (#FLAG), &remaining);       \
+}
+
+static
+const char*
+open_flags_to_string (int flags)
+{
+    static char result[OPEN_FLAGS_TO_STRING_BUFFER_SIZE];
+
+    char* cursor    = result;
+    bool  is_first  = true;
+    int   remaining = OPEN_FLAGS_TO_STRING_BUFFER_SIZE;
+
+    MAYBE_APPEND_FLAG (O_RDONLY);
+    MAYBE_APPEND_FLAG (O_WRONLY);
+    MAYBE_APPEND_FLAG (O_RDWR);
+
+    MAYBE_APPEND_FLAG (O_APPEND);
+    MAYBE_APPEND_FLAG (O_ASYNC);
+    MAYBE_APPEND_FLAG (O_CLOEXEC);
+    MAYBE_APPEND_FLAG (O_CREAT);
+    // MAYBE_APPEND_FLAG (O_DIRECT);
+    MAYBE_APPEND_FLAG (O_DIRECTORY);
+    MAYBE_APPEND_FLAG (O_DSYNC);
+    MAYBE_APPEND_FLAG (O_EXCL);
+    // MAYBE_APPEND_FLAG (O_EXEC);
+    MAYBE_APPEND_FLAG (O_LARGEFILE);
+    MAYBE_APPEND_FLAG (O_NDELAY);
+    // MAYBE_APPEND_FLAG (O_NOATIME);
+    MAYBE_APPEND_FLAG (O_NOCTTY);
+    MAYBE_APPEND_FLAG (O_NOFOLLOW);
+    MAYBE_APPEND_FLAG (O_NONBLOCK);
+    // MAYBE_APPEND_FLAG (O_PATH);
+    MAYBE_APPEND_FLAG (O_RSYNC);
+    MAYBE_APPEND_FLAG (O_SYNC);
+    // MAYBE_APPEND_FLAG (O_TMPFILE);
+    MAYBE_APPEND_FLAG (O_TRUNC);
+
+    return result;
+}
+
+#undef MAYBE_APPEND_FLAG
+
+//
+// main
 //
 
 int
@@ -179,6 +411,8 @@ main (int    argument_count,
       char** argument_vector)
 {
     int getopt_result;
+
+    printf ("%s\n", open_flags_to_string (O_RDWR | O_APPEND));
 
     while (1)
     {
@@ -239,7 +473,7 @@ main (int    argument_count,
 }
 
 //
-// open_or_fail(char*,int)
+// open_or_fail
 //
 
 static
@@ -252,51 +486,60 @@ open_or_fail (char* pathname,
     if (result < 0)
     {
         perror ("open(2): ");
-        fprintf (stderr, "%s:%d: In open_or_fail, open(2) failed.\n",
-                 __FILE__, __LINE__);
+        fprintf (stderr, "%s:%d: In open_or_fail, open("
+                 "pathname=\"%s\", flags=%s) failed.\n",
+                 __FILE__, __LINE__, pathname,
+                 open_flags_to_string (flags));
         exit (1);
     }
     return result;
 }
 
 //
-// scan_block(int,char*,size_t)
+// read_or_fail
 //
 
 static
 int
-scan_block (int    descriptor,
-            int    offset,
-            char*  block,
-            size_t size)
+read_or_fail (int    descriptor,
+              void*  block,
+              size_t count)
 {
-    int index        = 0;
-    int lseek_result = 0;
-    int read_result  = 0;
-    int result       = 0;
+    int result = read (descriptor, block, count);
 
-    lseek_result = lseek (descriptor, offset, SEEK_SET);
-    if (lseek_result < 0)
-    {
-        perror ("lseek(2): ");
-        fprintf (stderr,
-                 "%s:%d: In eliminate_terminal_nulls, "
-                 "lseek(2) failed for offset=%d.\n",
-                 __FILE__, __LINE__,
-                 lseek_result);
-        exit (1);
-    }
-
-    read_result = read (descriptor,  (void*)block, size);
-    if (read_result != size)
+    if (result != count)
     {
         perror ("read(2): ");
         fprintf (stderr,
                  "%s:%d: In eliminate_terminal_nulls, "
                  "read(2) returned %d when expecting %lu.\n",
-                 __FILE__, __LINE__, read_result, size);
+                 __FILE__, __LINE__, result, count);
         exit (1);
     }
+
+    return result;
+}
+
+//
+// scan_block
+//
+
+static
+off_t
+scan_block (int    descriptor,
+            off_t  offset,
+            char*  block,
+            size_t size)
+{
+    int   index  = -1;
+    off_t result =  0;
+
+    // fprintf (stderr, "%s:%d: scan_block(%d,%ld,0x%lX,%lu)\n",
+    //          __FILE__, __LINE__, descriptor, offset,
+    //          (unsigned long int)block, size);
+
+    (void)lseek_or_fail (descriptor, offset, SEEK_SET);
+    (void)read_or_fail (descriptor,  (void*)block, size);
 
     for (index = size - 1; index >= 0; --index)
     {
