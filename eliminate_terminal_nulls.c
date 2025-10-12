@@ -11,10 +11,13 @@
 // Headers, etc
 // Function prototypes
 // close_or_fail
+// cursor_append
 // eliminate_terminal_nulls
 // fstat_or_fail
 // ftruncate_or_fail
 // lseek_or_fail
+// lseek_whence_to_string
+// open_flags_to_string - non-reentrant / static state
 // main
 // open_or_fail
 // read_or_fail
@@ -34,10 +37,13 @@
 #include <stdint.h>
 #include <stdio.h>
 #include <stdlib.h>
+#include <string.h>
 #include <unistd.h>
 
 #include <sys/stat.h>
 #include <sys/types.h>
+
+#define OPEN_FLAGS_TO_STRING_BUFFER_SIZE (1024)
 
 //
 // Function prototypes
@@ -46,6 +52,12 @@
 static
 int
 close_or_fail (int descriptor);
+
+static
+char*
+cursor_append(char* cursor,
+              char* text,
+              int*  remaining_pointer);
 
 static
 bool
@@ -88,6 +100,10 @@ scan_block (int    descriptor,
             off_t  offset,
             char*  block,
             size_t size);
+
+static
+const char*
+lseek_whence_to_string (int whence);
 
 //
 // close_or_fail
@@ -102,10 +118,42 @@ close_or_fail (int descriptor)
     if (result < 0)
     {
         perror ("close(2): ");
-        fprintf (stderr,
-                 "%s:%d: In eliminate_terminal_nulls, close(2) failed.\n",
-                 __FILE__, __LINE__);
+        fprintf (stderr, "%s:%d: In eliminate_terminal_nulls,"
+                 " close(descriptor=%d) failed, returning %d.\n",
+                 __FILE__, __LINE__,
+                 descriptor, result);
         exit (1);
+    }
+
+    return result;
+}
+
+//
+// cursor_append
+//
+
+static
+char*
+cursor_append(char* cursor,
+              char* text,
+              int*  remaining_pointer)
+{
+    char* result      = cursor;
+    int   text_length = strlen (text);
+
+    if (text_length <= (*remaining_pointer))
+    {
+        (void)snprintf (result, *remaining_pointer, "%s", text);
+        result += text_length;
+        (*remaining_pointer) -= text_length;
+        
+    }
+    else
+    {
+        fprintf (stderr, "cursor_append: Out of buffer space\n");
+        fprintf (stderr, "%s:%d: cursor_append("
+                 "cursor=\"%s\",text=\"%s\",remaining=%d)",
+                 __FILE__, __LINE__, cursor, text, *remaining_pointer);
     }
 
     return result;
@@ -208,8 +256,10 @@ fstat_or_fail (int          descriptor,
     if (result != 0)
     {
         perror ("fstat(2): ");
-        fprintf (stderr, "%s:%d: In fstat_or_fail, fstat(2) failed.\n",
-                 __FILE__, __LINE__);
+        fprintf (stderr, "%s:%d: In fstat_or_fail, fstat(descriptor=%d"
+                 ",status=0x%lX) failed, returning %d.\n",
+                 __FILE__, __LINE__,
+                 descriptor, (intptr_t)status, result);
         exit (1);
     }
     return result;
@@ -229,8 +279,9 @@ ftruncate_or_fail (int   descriptor,
     if (result != 0)
     {
         perror ("ftruncate(2): ");
-        fprintf (stderr, "%s:%d: In ftruncate_or_fail, ftruncate(2) failed.\n",
-                 __FILE__, __LINE__);
+        fprintf (stderr, "%s:%d: In ftruncate_or_fail, ftruncate("
+                 "descriptor=%d,length=%ld) failed, returning %d.\n",
+                 __FILE__, __LINE__, descriptor, length, result);
         exit (1);
     }
     return result;
@@ -251,12 +302,96 @@ lseek_or_fail (int   descriptor,
     if (result != offset)
     {
         perror ("lseek(2): ");
-        fprintf (stderr, "%s:%d: In lseek_or_fail, lseek(2) failed.\n",
-                 __FILE__, __LINE__);
+        fprintf (stderr, "%s:%d: In lseek_or_fail, lseek(descriptor=%d"
+                 ",offset=%ld,whence=\"%s\") failed, returning %ld.\n",
+                 __FILE__, __LINE__, descriptor, offset,
+                 lseek_whence_to_string (whence), result);
         exit (1);
     }
     return result;
 }
+
+//
+// lseek_whence_to_string
+//
+
+static
+const char*
+lseek_whence_to_string (int whence)
+{
+    const char* result = "<unknown whence>";
+    switch (whence)
+    {
+     case SEEK_SET:
+        result = "SEEK_SET";
+        break;
+     case SEEK_CUR:
+        result = "SEEK_CUR";
+        break;
+     case SEEK_END:
+        result = "SEEK_END";
+        break;
+    }
+    return result;
+}
+
+//
+// open_flags_to_string - non-reentrant / static state
+//
+
+#define EMIT_FLAG(FLAG)                                         \
+if ((flags & (FLAG)) != 0)                                      \
+{                                                               \
+    if (is_first)                                               \
+    {                                                           \
+        is_first = false;                                       \
+    }                                                           \
+    else                                                        \
+    {                                                           \
+        cursor = cursor_append (cursor, "|", &remaining);       \
+    }                                                           \
+    cursor = cursor_append (cursor, (#FLAG), &remaining);       \
+}
+
+static
+const char*
+open_flags_to_string (int flags)
+{
+    static char result[OPEN_FLAGS_TO_STRING_BUFFER_SIZE];
+
+    char* cursor    = result;
+    bool  is_first  = true;
+    int   remaining = OPEN_FLAGS_TO_STRING_BUFFER_SIZE;
+
+    EMIT_FLAG (O_RDONLY);
+    EMIT_FLAG (O_WRONLY);
+    EMIT_FLAG (O_RDWR);
+
+    EMIT_FLAG (O_APPEND);
+    EMIT_FLAG (O_ASYNC);
+    EMIT_FLAG (O_CLOEXEC);
+    EMIT_FLAG (O_CREAT);
+    // EMIT_FLAG (O_DIRECT);
+    EMIT_FLAG (O_DIRECTORY);
+    EMIT_FLAG (O_DSYNC);
+    EMIT_FLAG (O_EXCL);
+    // EMIT_FLAG (O_EXEC);
+    EMIT_FLAG (O_LARGEFILE);
+    EMIT_FLAG (O_NDELAY);
+    // EMIT_FLAG (O_NOATIME);
+    EMIT_FLAG (O_NOCTTY);
+    EMIT_FLAG (O_NOFOLLOW);
+    EMIT_FLAG (O_NONBLOCK);
+    // EMIT_FLAG (O_PATH);
+    EMIT_FLAG (O_RSYNC);
+    EMIT_FLAG (O_SYNC);
+    // EMIT_FLAG (O_TMPFILE);
+    EMIT_FLAG (O_TRUNC);
+
+    return result;
+}
+
+#undef EMIT_FLAG
 
 //
 // main
@@ -267,6 +402,8 @@ main (int    argument_count,
       char** argument_vector)
 {
     int getopt_result;
+
+    printf ("%s\n", open_flags_to_string (O_RDWR | O_APPEND));
 
     while (1)
     {
@@ -340,8 +477,10 @@ open_or_fail (char* pathname,
     if (result < 0)
     {
         perror ("open(2): ");
-        fprintf (stderr, "%s:%d: In open_or_fail, open(2) failed.\n",
-                 __FILE__, __LINE__);
+        fprintf (stderr, "%s:%d: In open_or_fail, open("
+                 "pathname=\"%s\", flags=%s) failed.\n",
+                 __FILE__, __LINE__, pathname,
+                 open_flags_to_string (flags));
         exit (1);
     }
     return result;
