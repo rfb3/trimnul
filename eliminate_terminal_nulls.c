@@ -17,8 +17,8 @@
 // ftruncate_or_fail
 // lseek_or_fail
 // lseek_whence_to_string
-// open_flags_to_string - non-reentrant / static state
 // main
+// open_flags_to_string - non-reentrant / static state
 // open_or_fail
 // read_or_fail
 // scan_block
@@ -79,6 +79,10 @@ lseek_or_fail (int   descriptor,
                off_t offset,
                int   whence);
 
+static
+const char*
+lseek_whence_to_string (int whence);
+
 int
 main (int    argument_count,
       char** argument_vector);
@@ -104,10 +108,6 @@ scan_block (int    descriptor,
             off_t  offset,
             char*  block,
             size_t size);
-
-static
-const char*
-lseek_whence_to_string (int whence);
 
 //
 // close_or_fail
@@ -126,7 +126,7 @@ close_or_fail (int descriptor)
                  " close(descriptor=%d) failed, returning %d.\n",
                  __FILE__, __LINE__,
                  descriptor, result);
-        exit (1);
+        exit (EXIT_FAILURE);
     }
 
     return result;
@@ -190,35 +190,29 @@ eliminate_terminal_nulls (char* pathname)
     file_complete_block_count = file_bytes / file_block_size;
     file_last_block_size      = file_bytes % file_block_size;
 
-    // Note: alloca(3) does not have typical error semantics. Potential
-    //       updates include:
-    //        - use malloc(3)
-    //        - hard code an array at least as big as the biggest realistic
-    //          value of st_blksize
-    //        - hard code 4096 instead of st_blksize
-    //        - add a SEGV handler around the use of the block buffer
-    //
-    //       For now, this has the semantics that I want and is unlikely to
-    //       overflow the stack.
-    //
     block = (char*)(alloca (file_block_size));
 
-    // See if the last non-null is in an incomplete final block of the file
+    // First check whether the last non-null character is in an incomplete final
+    // block of the file
+    //
     if (file_last_block_size != 0)
     {
-        int scan_result
+        off_t scan_result
             = scan_block (descriptor,
                           file_block_size * file_complete_block_count,
                           block,
                           file_last_block_size);
         if (scan_result >= 0)
         {
-            null_offset
-                = file_block_size * file_complete_block_count + scan_result;
+            null_offset = scan_result;
         }
     }
 
-    // Otherwise walk backward looking for 
+    // If the last non-null character was not found in a final
+    // incomplete block, then walk backward through the complete
+    // blocks, looking for one containing the last non-null character
+    // in the file.
+    //
     if (null_offset < 0)
     {
         int_fast64_t block_index = 0;
@@ -227,16 +221,21 @@ eliminate_terminal_nulls (char* pathname)
              block_index >= 0;
              --block_index)
         {
-            int scan_result = scan_block (descriptor,
-                                          block_index * file_block_size,
-                                          block,
-                                          file_block_size);
+            off_t scan_result = scan_block (descriptor,
+                                            block_index * file_block_size,
+                                            block,
+                                            file_block_size);
             if (scan_result >= 0)
             {
                 null_offset = scan_result;
                 break;
             }
         }
+    }
+
+    if (null_offset == -1)
+    {
+        null_offset = 0;
     }
 
     if (null_offset != file_bytes)
@@ -269,7 +268,7 @@ fstat_or_fail (int          descriptor,
                  ",status=0x%lX) failed, returning %d.\n",
                  __FILE__, __LINE__,
                  descriptor, (intptr_t)status, result);
-        exit (1);
+        exit (EXIT_FAILURE);
     }
     return result;
 }
@@ -291,7 +290,7 @@ ftruncate_or_fail (int   descriptor,
         fprintf (stderr, "%s:%d: In ftruncate_or_fail, ftruncate("
                  "descriptor=%d,length=%ld) failed, returning %d.\n",
                  __FILE__, __LINE__, descriptor, length, result);
-        exit (1);
+        exit (EXIT_FAILURE);
     }
     return result;
 }
@@ -315,7 +314,7 @@ lseek_or_fail (int   descriptor,
                  ",offset=%ld,whence=\"%s\") failed, returning %ld.\n",
                  __FILE__, __LINE__, descriptor, offset,
                  lseek_whence_to_string (whence), result);
-        exit (1);
+        exit (EXIT_FAILURE);
     }
     return result;
 }
@@ -342,6 +341,74 @@ lseek_whence_to_string (int whence)
         break;
     }
     return result;
+}
+
+//
+// main
+//
+
+int
+main (int    argument_count,
+      char** argument_vector)
+{
+    int getopt_result;
+
+    while (true)
+    {
+        static struct option long_options [] =
+            {
+                {0, 0, 0, 0}
+            };
+
+        int option_index = 0;
+        getopt_result = getopt_long (argument_count, argument_vector, "",
+                         long_options, &option_index);
+
+        /* Detect the end of the options. */
+        if (getopt_result == -1)
+        {
+            break;
+        }
+
+        switch (getopt_result)
+        {
+         case 0:
+            /* If this option set a flag, do nothing else now. */
+            if (long_options [option_index].flag != 0)
+            {
+                break;
+            }
+            printf ("option %s", long_options [option_index].name);
+            if (optarg)
+            {
+                printf (" with arg %s", optarg);
+            }
+            printf ("\n");
+            break;
+
+         case '?':
+            /* getopt_long already printed an error message. */
+            exit (EXIT_FAILURE);
+            break;
+
+         default:
+            fprintf (stderr, "Unrecognized option: -%c\n", getopt_result);
+            exit (EXIT_FAILURE);
+        }
+    }
+
+    /* Process any remaining command line arguments (not options). */
+    for (; optind < argument_count; ++optind)
+    {
+        char* argument = argument_vector [optind];
+
+        if (eliminate_terminal_nulls (argument) == 1)
+        {
+            printf ("%s\n", argument);
+        }
+    }
+
+    return 0;
 }
 
 //
@@ -403,76 +470,6 @@ open_flags_to_string (int flags)
 #undef MAYBE_APPEND_FLAG
 
 //
-// main
-//
-
-int
-main (int    argument_count,
-      char** argument_vector)
-{
-    int getopt_result;
-
-    printf ("%s\n", open_flags_to_string (O_RDWR | O_APPEND));
-
-    while (1)
-    {
-        static struct option long_options [] =
-            {
-                {0, 0, 0, 0}
-            };
-
-        int option_index = 0;
-        getopt_result = getopt_long (argument_count, argument_vector, "",
-                         long_options, &option_index);
-
-        /* Detect the end of the options. */
-        if (getopt_result == -1)
-        {
-            break;
-        }
-
-        switch (getopt_result)
-        {
-         case 0:
-            /* If this option set a flag, do nothing else now. */
-            if (long_options [option_index].flag != 0)
-            {
-                break;
-            }
-            printf ("option %s", long_options [option_index].name);
-            if (optarg)
-            {
-                printf (" with arg %s", optarg);
-            }
-            printf ("\n");
-            break;
-
-         case '?':
-            /* getopt_long already printed an error message. */
-            exit (1);
-            break;
-
-         default:
-            fprintf (stderr, "Unrecognized option: -%c\n", getopt_result);
-            exit (1);
-        }
-    }
-
-    /* Process any remaining command line arguments (not options). */
-    for (; optind < argument_count; ++optind)
-    {
-        char* argument = argument_vector [optind];
-
-        if (eliminate_terminal_nulls (argument) == 1)
-        {
-            printf ("%s\n", argument);
-        }
-    }
-
-    return 0;
-}
-
-//
 // open_or_fail
 //
 
@@ -490,7 +487,7 @@ open_or_fail (char* pathname,
                  "pathname=\"%s\", flags=%s) failed.\n",
                  __FILE__, __LINE__, pathname,
                  open_flags_to_string (flags));
-        exit (1);
+        exit (EXIT_FAILURE);
     }
     return result;
 }
@@ -514,7 +511,7 @@ read_or_fail (int    descriptor,
                  "%s:%d: In eliminate_terminal_nulls, "
                  "read(2) returned %d when expecting %lu.\n",
                  __FILE__, __LINE__, result, count);
-        exit (1);
+        exit (EXIT_FAILURE);
     }
 
     return result;
@@ -522,6 +519,13 @@ read_or_fail (int    descriptor,
 
 //
 // scan_block
+//
+// Returns the offset to the file position just after the last
+// non-null character in this block, that is, the offset of the last
+// character that is not an ASCII NUL (0 byte) character.
+//
+// If no such character exists, that is, if every byte in the block is
+// 0, returns -1.
 //
 
 static
@@ -532,11 +536,7 @@ scan_block (int    descriptor,
             size_t size)
 {
     int   index  = -1;
-    off_t result =  0;
-
-    // fprintf (stderr, "%s:%d: scan_block(%d,%ld,0x%lX,%lu)\n",
-    //          __FILE__, __LINE__, descriptor, offset,
-    //          (unsigned long int)block, size);
+    off_t result = -1;
 
     (void)lseek_or_fail (descriptor, offset, SEEK_SET);
     (void)read_or_fail (descriptor,  (void*)block, size);
@@ -549,5 +549,6 @@ scan_block (int    descriptor,
             break;
         }
     }
+
     return result;
 }
