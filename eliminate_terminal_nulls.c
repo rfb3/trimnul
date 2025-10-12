@@ -178,7 +178,7 @@ eliminate_terminal_nulls (char* pathname)
 
     uint_fast64_t file_complete_block_count = (uint_fast64_t)0;
     size_t        file_last_block_size      = (int)0;
-    off_t         null_offset               = (off_t)0;
+    off_t         null_offset               = (off_t)(-1);
     bool          result                    = false;
     struct stat   status_buffer;
 
@@ -190,16 +190,20 @@ eliminate_terminal_nulls (char* pathname)
     file_complete_block_count = file_bytes / file_block_size;
     file_last_block_size      = file_bytes % file_block_size;
 
-    /* Note: alloca(3) does not have typical error semantics. Potential updates include:
-     *       - use malloc(3)
-     *       - hard code an array at least as big as the biggest realistic value of st_blksize
-     *       - hard code 4096 instead of st_blksize
-     *       - add a SEGV handler around the use of the block buffer
-     *
-     *       For now, this has the semantics that I want and is unlikely to overflow the stack.
-     */
+    // Note: alloca(3) does not have typical error semantics. Potential
+    //       updates include:
+    //        - use malloc(3)
+    //        - hard code an array at least as big as the biggest realistic
+    //          value of st_blksize
+    //        - hard code 4096 instead of st_blksize
+    //        - add a SEGV handler around the use of the block buffer
+    //
+    //       For now, this has the semantics that I want and is unlikely to
+    //       overflow the stack.
+    //
     block = (char*)(alloca (file_block_size));
 
+    // See if the last non-null is in an incomplete final block of the file
     if (file_last_block_size != 0)
     {
         int scan_result
@@ -207,13 +211,15 @@ eliminate_terminal_nulls (char* pathname)
                           file_block_size * file_complete_block_count,
                           block,
                           file_last_block_size);
-        if (scan_result > 0)
+        if (scan_result >= 0)
         {
-            null_offset = scan_result;
+            null_offset
+                = file_block_size * file_complete_block_count + scan_result;
         }
     }
 
-    if (null_offset == 0)
+    // Otherwise walk backward looking for 
+    if (null_offset < 0)
     {
         int_fast64_t block_index = 0;
 
@@ -225,12 +231,11 @@ eliminate_terminal_nulls (char* pathname)
                                           block_index * file_block_size,
                                           block,
                                           file_block_size);
-            if (scan_result > 0)
+            if (scan_result >= 0)
             {
                 null_offset = scan_result;
                 break;
             }
-        
         }
     }
 
@@ -526,14 +531,14 @@ scan_block (int    descriptor,
             char*  block,
             size_t size)
 {
-    int   index  = 0;
-    off_t result = 0;
+    int   index  = -1;
+    off_t result =  0;
 
     // fprintf (stderr, "%s:%d: scan_block(%d,%ld,0x%lX,%lu)\n",
-    //          __FILE__, __LINE__, descriptor, offset, (unsigned long int)block, size);
+    //          __FILE__, __LINE__, descriptor, offset,
+    //          (unsigned long int)block, size);
 
     (void)lseek_or_fail (descriptor, offset, SEEK_SET);
-
     (void)read_or_fail (descriptor,  (void*)block, size);
 
     for (index = size - 1; index >= 0; --index)
