@@ -84,6 +84,10 @@ main (int    argument_count,
       char** argument_vector);
 
 static
+const char*
+open_flags_to_string (int flags);
+
+static
 int
 open_or_fail (char* pathname,
               int flags);
@@ -339,7 +343,7 @@ lseek_whence_to_string (int whence)
 // open_flags_to_string - non-reentrant / static state
 //
 
-#define EMIT_FLAG(FLAG)                                         \
+#define MAYBE_APPEND_FLAG(FLAG)                                 \
 if ((flags & (FLAG)) != 0)                                      \
 {                                                               \
     if (is_first)                                               \
@@ -363,35 +367,35 @@ open_flags_to_string (int flags)
     bool  is_first  = true;
     int   remaining = OPEN_FLAGS_TO_STRING_BUFFER_SIZE;
 
-    EMIT_FLAG (O_RDONLY);
-    EMIT_FLAG (O_WRONLY);
-    EMIT_FLAG (O_RDWR);
+    MAYBE_APPEND_FLAG (O_RDONLY);
+    MAYBE_APPEND_FLAG (O_WRONLY);
+    MAYBE_APPEND_FLAG (O_RDWR);
 
-    EMIT_FLAG (O_APPEND);
-    EMIT_FLAG (O_ASYNC);
-    EMIT_FLAG (O_CLOEXEC);
-    EMIT_FLAG (O_CREAT);
-    // EMIT_FLAG (O_DIRECT);
-    EMIT_FLAG (O_DIRECTORY);
-    EMIT_FLAG (O_DSYNC);
-    EMIT_FLAG (O_EXCL);
-    // EMIT_FLAG (O_EXEC);
-    EMIT_FLAG (O_LARGEFILE);
-    EMIT_FLAG (O_NDELAY);
-    // EMIT_FLAG (O_NOATIME);
-    EMIT_FLAG (O_NOCTTY);
-    EMIT_FLAG (O_NOFOLLOW);
-    EMIT_FLAG (O_NONBLOCK);
-    // EMIT_FLAG (O_PATH);
-    EMIT_FLAG (O_RSYNC);
-    EMIT_FLAG (O_SYNC);
-    // EMIT_FLAG (O_TMPFILE);
-    EMIT_FLAG (O_TRUNC);
+    MAYBE_APPEND_FLAG (O_APPEND);
+    MAYBE_APPEND_FLAG (O_ASYNC);
+    MAYBE_APPEND_FLAG (O_CLOEXEC);
+    MAYBE_APPEND_FLAG (O_CREAT);
+    // MAYBE_APPEND_FLAG (O_DIRECT);
+    MAYBE_APPEND_FLAG (O_DIRECTORY);
+    MAYBE_APPEND_FLAG (O_DSYNC);
+    MAYBE_APPEND_FLAG (O_EXCL);
+    // MAYBE_APPEND_FLAG (O_EXEC);
+    MAYBE_APPEND_FLAG (O_LARGEFILE);
+    MAYBE_APPEND_FLAG (O_NDELAY);
+    // MAYBE_APPEND_FLAG (O_NOATIME);
+    MAYBE_APPEND_FLAG (O_NOCTTY);
+    MAYBE_APPEND_FLAG (O_NOFOLLOW);
+    MAYBE_APPEND_FLAG (O_NONBLOCK);
+    // MAYBE_APPEND_FLAG (O_PATH);
+    MAYBE_APPEND_FLAG (O_RSYNC);
+    MAYBE_APPEND_FLAG (O_SYNC);
+    // MAYBE_APPEND_FLAG (O_TMPFILE);
+    MAYBE_APPEND_FLAG (O_TRUNC);
 
     return result;
 }
 
-#undef EMIT_FLAG
+#undef MAYBE_APPEND_FLAG
 
 //
 // main
