@@ -6,7 +6,7 @@
 // Table of Contents
 //
 
-f// eliminate_terminal_nulls.c - truncates any NUL (0) bytes off end of file
+// eliminate_terminal_nulls.c - truncates any NUL (0) bytes off end of file
 // Table of Contents
 // Headers, etc
 // Function prototypes
