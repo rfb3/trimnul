@@ -22,6 +22,7 @@
 // open_or_fail
 // read_or_fail
 // scan_block
+// usage
 
 //
 // Headers, etc
@@ -44,6 +45,16 @@
 #include <sys/types.h>
 
 #define OPEN_FLAGS_TO_STRING_BUFFER_SIZE (1024)
+
+typedef struct Options_struct
+{
+    int dry_run;
+    int verbose;
+}
+Options;
+
+
+static char* Program_Name = (char*)NULL;
 
 //
 // Function prototypes
@@ -61,7 +72,8 @@ cursor_append(char* cursor,
 
 static
 bool
-eliminate_terminal_nulls (char* pathname);
+eliminate_terminal_nulls (Options options,
+                          char*   pathname);
 
 static
 int
@@ -108,6 +120,15 @@ scan_block (int    descriptor,
             off_t  offset,
             char*  block,
             size_t size);
+
+static
+void
+usage (FILE* stream,
+       int   exit_status);
+
+static
+void
+version ();
 
 //
 // close_or_fail
@@ -169,7 +190,8 @@ cursor_append(char* cursor,
 
 static
 bool
-eliminate_terminal_nulls (char* pathname)
+eliminate_terminal_nulls (Options options,
+                          char*   pathname)
 {
     char*         block                     = (char*)NULL;
     int           descriptor                = (int)0;
@@ -351,18 +373,31 @@ int
 main (int    argument_count,
       char** argument_vector)
 {
-    int getopt_result;
+    int getopt_result = 0;
 
+    Options options;
+
+    Program_Name = argument_vector [0];
     while (true)
     {
         static struct option long_options [] =
             {
+                {"dry-run", no_argument, (int*)NULL, 1},
+                {"help",    no_argument, (int*)NULL, 0},
+                {"quiet",   no_argument, (int*)NULL, 0},
+                {"verbose", no_argument, (int*)NULL, 1},
+                {"version", no_argument, (int*)NULL, 0},
                 {0, 0, 0, 0}
             };
 
+        long_options [0].flag = &(options.dry_run);
+        long_options [2].flag = &(options.verbose);
+        long_options [3].flag = &(options.verbose);
+
         int option_index = 0;
-        getopt_result = getopt_long (argument_count, argument_vector, "",
-                         long_options, &option_index);
+        getopt_result = getopt_long (
+            argument_count, argument_vector, "hnqvV",
+            long_options, &option_index);
 
         /* Detect the end of the options. */
         if (getopt_result == -1)
@@ -376,24 +411,58 @@ main (int    argument_count,
             /* If this option set a flag, do nothing else now. */
             if (long_options [option_index].flag != 0)
             {
+                printf ("option %s set a flag\n", long_options [option_index].name);
+                printf (" verbose_flag is %d\n", options.verbose);
                 break;
             }
-            printf ("option %s", long_options [option_index].name);
-            if (optarg)
+            else if (strcmp ("help", long_options [option_index].name) == 0)
             {
-                printf (" with arg %s", optarg);
+                usage (stdout, 0);
             }
-            printf ("\n");
+            else if (strcmp ("version", long_options [option_index].name) == 0)
+            {
+                version ();
+            }
+            else
+            {
+                printf ("option %s", long_options [option_index].name);
+                if (optarg)
+                {
+                    printf (" with arg %s", optarg);
+                }
+                printf ("\n");
+                usage (stderr, EXIT_FAILURE);
+            }
+            break;
+
+         case 'h':
+            usage (stdout, EXIT_SUCCESS);
+            break;
+
+         case 'n':
+            options.dry_run = true;
+            break;
+
+         case 'q':
+            options.verbose = false;
+            break;
+
+         case 'v':
+            options.verbose = true;
+            break;
+
+         case 'V':
+            version ();
             break;
 
          case '?':
             /* getopt_long already printed an error message. */
-            exit (EXIT_FAILURE);
+            usage (stderr, EXIT_FAILURE);
             break;
 
          default:
             fprintf (stderr, "Unrecognized option: -%c\n", getopt_result);
-            exit (EXIT_FAILURE);
+            usage (stderr, EXIT_FAILURE);
         }
     }
 
@@ -402,7 +471,7 @@ main (int    argument_count,
     {
         char* argument = argument_vector [optind];
 
-        if (eliminate_terminal_nulls (argument) == 1)
+        if (eliminate_terminal_nulls (options, argument) == 1)
         {
             printf ("%s\n", argument);
         }
@@ -551,4 +620,37 @@ scan_block (int    descriptor,
     }
 
     return result;
+}
+
+//
+// usage
+//
+
+static
+void
+usage (FILE* stream,
+       int   exit_status)
+{
+    fprintf (stream, "Usage:\n     %s [OPTIONS] FILE...\n\n", Program_Name);
+    fprintf (stream, "Arguments:\n     FILE... — One or more pathnames to regular files to process.\n\n");
+    fprintf (stream, "Options:\n");
+    fprintf (stream, "    -n, --dry-run     Show what changes would be made without modifying any files.\n");
+    fprintf (stream, "    -v, --verbose     Print details about each file examined.\n");
+    fprintf (stream, "    -q, --quiet       Suppress normal output; only report errors.\n");
+    fprintf (stream, "    -h, --help        Display usage help.\n");
+    fprintf (stream, "    -V, --version     Display program version.\n");
+
+    exit (exit_status);
+}
+
+//
+// version
+//
+
+static
+void
+version ()
+{
+    printf ("%s, Version 1.0.0\n", Program_Name);
+    exit (EXIT_SUCCESS);
 }
