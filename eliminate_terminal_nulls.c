@@ -23,6 +23,7 @@
 // read_or_fail
 // scan_block
 // usage
+// version
 
 //
 // Headers, etc
