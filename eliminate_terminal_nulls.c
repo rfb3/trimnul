@@ -6,7 +6,7 @@
 // Table of Contents
 //
 
-// eliminate_terminal_nulls.c - truncates any NUL (0) bytes off end of file
+f// eliminate_terminal_nulls.c - truncates any NUL (0) bytes off end of file
 // Table of Contents
 // Headers, etc
 // Function prototypes
@@ -265,7 +265,10 @@ eliminate_terminal_nulls (Options options,
     {
         result = true;
 
-        (void)ftruncate_or_fail (descriptor, null_offset);
+        if (options.dry_run != 0)
+        {
+            (void)ftruncate_or_fail (descriptor, null_offset);
+        }
     }
 
     (void)close_or_fail (descriptor);
@@ -412,8 +415,6 @@ main (int    argument_count,
             /* If this option set a flag, do nothing else now. */
             if (long_options [option_index].flag != 0)
             {
-                printf ("option %s set a flag\n", long_options [option_index].name);
-                printf (" verbose_flag is %d\n", options.verbose);
                 break;
             }
             else if (strcmp ("help", long_options [option_index].name) == 0)
