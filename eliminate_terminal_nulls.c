@@ -265,7 +265,7 @@ eliminate_terminal_nulls (Options options,
     {
         result = true;
 
-        if (options.dry_run != 0)
+        if (options.dry_run == 0)
         {
             (void)ftruncate_or_fail (descriptor, null_offset);
         }
