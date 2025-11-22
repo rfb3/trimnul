@@ -202,10 +202,15 @@ eliminate_terminal_nulls (Options options,
     uint_fast64_t file_complete_block_count = (uint_fast64_t)0;
     size_t        file_last_block_size      = (int)0;
     off_t         null_offset               = (off_t)(-1);
+    int           open_flags                = O_RDWR;
     bool          result                    = false;
     struct stat   status_buffer;
 
-    descriptor = open_or_fail (pathname, O_RDWR | O_LARGEFILE);
+#ifndef __APPLE__  // Linux, etc.
+    open_flags |= O_LARGEFILE;
+#endif
+
+    descriptor = open_or_fail (pathname, open_flags);
     (void)fstat_or_fail (descriptor, &status_buffer);
 
     file_bytes                = status_buffer.st_size;
