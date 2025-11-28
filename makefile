@@ -1,5 +1,7 @@
 .PHONY:	all clean distclean install test
 
+CC=gcc
+
 CFLAGS=-O2 -g -Wall -pedantic -pedantic-errors
 CPPFLAGS=
 LDFLAGS=
