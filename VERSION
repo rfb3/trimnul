@@ -1,6 +1,0 @@
-eliminate_terminal_nulls version 1.0.0
-Release date: 2025-10-12
-Description:
-Initial stable release of the command-line utility. Removes trailing
-null bytes from files to clean up corrupted or improperly generated
-files.
