@@ -6,20 +6,20 @@ CFLAGS=-O2 -g -Wall -pedantic -pedantic-errors
 CPPFLAGS=
 LDFLAGS=
 
-all:	eliminate_terminal_nulls
+all:	trimnul
 
-eliminate_terminal_nulls:	eliminate_terminal_nulls.o
-	$(LINK.c) -o eliminate_terminal_nulls eliminate_terminal_nulls.o
+trimnul:	trimnul.o
+	$(LINK.c) -o trimnul trimnul.o
 
 clean:
 	$(RM) foo bar baz\
-          eliminate_terminal_nulls eliminate_terminal_nulls.o *~ \#*
+          trimnul trimnul.o *~ \#*
 
-install:	eliminate_terminal_nulls
-	install eliminate_terminal_nulls ~/bin
+install:	trimnul
+	install trimnul ~/bin
 
-test:	eliminate_terminal_nulls
+test:	trimnul
 	cp foo.test foo
 	cp bar.test bar
 	cp baz.test baz
-	./eliminate_terminal_nulls foo bar baz
+	./trimnul foo bar baz
