@@ -129,7 +129,7 @@ usage (FILE* stream,
 
 static
 void
-version ();
+version (void);
 
 //
 // close_or_fail
@@ -320,7 +320,7 @@ ftruncate_or_fail (int   descriptor,
         perror ("ftruncate(2): ");
         fprintf (stderr, "%s:%d: In ftruncate_or_fail, ftruncate("
                  "descriptor=%d,length=%ld) failed, returning %d.\n",
-                 __FILE__, __LINE__, descriptor, length, result);
+                 __FILE__, __LINE__, descriptor, (long int)length, result);
         exit (EXIT_FAILURE);
     }
     return result;
@@ -343,7 +343,7 @@ lseek_or_fail (int   descriptor,
         perror ("lseek(2): ");
         fprintf (stderr, "%s:%d: In lseek_or_fail, lseek(descriptor=%d"
                  ",offset=%ld,whence=\"%s\") failed, returning %ld.\n",
-                 __FILE__, __LINE__, descriptor, offset,
+                 __FILE__, __LINE__, descriptor, (long int)offset,
                  lseek_whence_to_string (whence), result);
         exit (EXIT_FAILURE);
     }
