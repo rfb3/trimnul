@@ -342,9 +342,9 @@ lseek_or_fail (int   descriptor,
     {
         perror ("lseek(2): ");
         fprintf (stderr, "%s:%d: In lseek_or_fail, lseek(descriptor=%d"
-                 ",offset=%ld,whence=\"%s\") failed, returning %ld.\n",
+                 ",offset=%ld,whence=\"%s\") failed, returning %lld.\n",
                  __FILE__, __LINE__, descriptor, (long int)offset,
-                 lseek_whence_to_string (whence), result);
+                 lseek_whence_to_string (whence), (long long int)result);
         exit (EXIT_FAILURE);
     }
     return result;
@@ -528,14 +528,18 @@ open_flags_to_string (int flags)
     MAYBE_APPEND_FLAG (O_DSYNC);
     MAYBE_APPEND_FLAG (O_EXCL);
     // MAYBE_APPEND_FLAG (O_EXEC);
+#ifndef __APPLE__  // Linux, etc.
     MAYBE_APPEND_FLAG (O_LARGEFILE);
+#endif // __APPLE__  // Linux, etc.
     MAYBE_APPEND_FLAG (O_NDELAY);
     // MAYBE_APPEND_FLAG (O_NOATIME);
     MAYBE_APPEND_FLAG (O_NOCTTY);
     MAYBE_APPEND_FLAG (O_NOFOLLOW);
     MAYBE_APPEND_FLAG (O_NONBLOCK);
     // MAYBE_APPEND_FLAG (O_PATH);
+#ifndef __APPLE__  // Linux, etc.
     MAYBE_APPEND_FLAG (O_RSYNC);
+#endif // __APPLE__  // Linux, etc.
     MAYBE_APPEND_FLAG (O_SYNC);
     // MAYBE_APPEND_FLAG (O_TMPFILE);
     MAYBE_APPEND_FLAG (O_TRUNC);
@@ -656,7 +660,7 @@ usage (FILE* stream,
 
 static
 void
-version ()
+version (void)
 {
     printf ("%s, Version 1.0.0\n", Program_Name);
     exit (EXIT_SUCCESS);
