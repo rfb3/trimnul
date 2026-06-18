@@ -15,6 +15,8 @@ clean:
 	$(RM) foo bar baz\
           trimnul trimnul.o *~ \#*
 
+distclean:	clean
+
 install:	trimnul
 	install trimnul ~/bin
 
