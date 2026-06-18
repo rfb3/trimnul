@@ -1,6 +1,7 @@
-.PHONY:	all clean distclean install test
+.PHONY:	all clean distclean install test working
 
 CC=gcc
+GIT=git
 
 CFLAGS=-O2 -g -Wall -pedantic -pedantic-errors
 CPPFLAGS=
@@ -25,3 +26,7 @@ test:	trimnul
 	cp bar.test bar
 	cp baz.test baz
 	./trimnul foo bar baz
+
+working:
+	$(GIT) tag -f 'src/c/trimnul#working'
+	$(GIT) push --tags -f
