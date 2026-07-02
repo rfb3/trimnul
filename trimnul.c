@@ -1,18 +1,17 @@
 //
-// eliminate_terminal_nulls.c - truncates any NUL (0) bytes off end of file
+// trimnul.c - truncates any NUL (0) bytes off end of file
 //
 
 //
 // Table of Contents
 //
 
-// eliminate_terminal_nulls.c - truncates any NUL (0) bytes off end of file
+// trimnul.c - truncates any NUL (0) bytes off end of file
 // Table of Contents
 // Headers, etc
 // Function prototypes
 // close_or_fail
 // cursor_append
-// eliminate_terminal_nulls
 // fstat_or_fail
 // ftruncate_or_fail
 // lseek_or_fail
@@ -22,6 +21,7 @@
 // open_or_fail
 // read_or_fail
 // scan_block
+// trimnul
 // usage
 // version
 
@@ -72,11 +72,6 @@ cursor_append(char* cursor,
               int*  remaining_pointer);
 
 static
-bool
-eliminate_terminal_nulls (Options options,
-                          char*   pathname);
-
-static
 int
 fstat_or_fail (int          descriptor,
                struct stat* status);
@@ -123,6 +118,11 @@ scan_block (int    descriptor,
             size_t size);
 
 static
+bool
+trimnul (Options options,
+                          char*   pathname);
+
+static
 void
 usage (FILE* stream,
        int   exit_status);
@@ -144,7 +144,7 @@ close_or_fail (int descriptor)
     if (result < 0)
     {
         perror ("close(2): ");
-        fprintf (stderr, "%s:%d: In eliminate_terminal_nulls,"
+        fprintf (stderr, "%s:%d: In trimnul,"
                  " close(descriptor=%d) failed, returning %d.\n",
                  __FILE__, __LINE__,
                  descriptor, result);
@@ -181,102 +181,6 @@ cursor_append(char* cursor,
                  "cursor=\"%s\",text=\"%s\",remaining=%d)",
                  __FILE__, __LINE__, cursor, text, *remaining_pointer);
     }
-
-    return result;
-}
-
-//
-// eliminate_terminal_nulls
-//
-
-static
-bool
-eliminate_terminal_nulls (Options options,
-                          char*   pathname)
-{
-    char*         block                     = (char*)NULL;
-    int           descriptor                = (int)0;
-    blksize_t     file_block_size           = (off_t)0;
-    off_t         file_bytes                = (off_t)0;
-
-    uint_fast64_t file_complete_block_count = (uint_fast64_t)0;
-    size_t        file_last_block_size      = (int)0;
-    off_t         null_offset               = (off_t)(-1);
-    int           open_flags                = O_RDWR;
-    bool          result                    = false;
-    struct stat   status_buffer;
-
-#ifndef __APPLE__  // Linux, etc.
-    open_flags |= O_LARGEFILE;
-#endif
-
-    descriptor = open_or_fail (pathname, open_flags);
-    (void)fstat_or_fail (descriptor, &status_buffer);
-
-    file_bytes                = status_buffer.st_size;
-    file_block_size           = status_buffer.st_blksize;
-    file_complete_block_count = file_bytes / file_block_size;
-    file_last_block_size      = file_bytes % file_block_size;
-
-    block = (char*)(alloca (file_block_size));
-
-    // First check whether the last non-null character is in an incomplete final
-    // block of the file
-    //
-    if (file_last_block_size != 0)
-    {
-        off_t scan_result
-            = scan_block (descriptor,
-                          file_block_size * file_complete_block_count,
-                          block,
-                          file_last_block_size);
-        if (scan_result >= 0)
-        {
-            null_offset = scan_result;
-        }
-    }
-
-    // If the last non-null character was not found in a final
-    // incomplete block, then walk backward through the complete
-    // blocks, looking for one containing the last non-null character
-    // in the file.
-    //
-    if (null_offset < 0)
-    {
-        int_fast64_t block_index = 0;
-
-        for (block_index = file_complete_block_count - 1;
-             block_index >= 0;
-             --block_index)
-        {
-            off_t scan_result = scan_block (descriptor,
-                                            block_index * file_block_size,
-                                            block,
-                                            file_block_size);
-            if (scan_result >= 0)
-            {
-                null_offset = scan_result;
-                break;
-            }
-        }
-    }
-
-    if (null_offset == -1)
-    {
-        null_offset = 0;
-    }
-
-    if (null_offset != file_bytes)
-    {
-        result = true;
-
-        if (options.dry_run == 0)
-        {
-            (void)ftruncate_or_fail (descriptor, null_offset);
-        }
-    }
-
-    (void)close_or_fail (descriptor);
 
     return result;
 }
@@ -478,7 +382,7 @@ main (int    argument_count,
     {
         char* argument = argument_vector [optind];
 
-        if (eliminate_terminal_nulls (options, argument) == 1)
+        if (trimnul (options, argument) == 1)
         {
             printf ("%s\n", argument);
         }
@@ -588,7 +492,7 @@ read_or_fail (int    descriptor,
     {
         perror ("read(2): ");
         fprintf (stderr,
-                 "%s:%d: In eliminate_terminal_nulls, "
+                 "%s:%d: In trimnul, "
                  "read(2) returned %d when expecting %lu.\n",
                  __FILE__, __LINE__, result, count);
         exit (EXIT_FAILURE);
@@ -634,6 +538,102 @@ scan_block (int    descriptor,
 }
 
 //
+// trimnul
+//
+
+static
+bool
+trimnul (Options options,
+                          char*   pathname)
+{
+    char*         block                     = (char*)NULL;
+    int           descriptor                = (int)0;
+    blksize_t     file_block_size           = (off_t)0;
+    off_t         file_bytes                = (off_t)0;
+
+    uint_fast64_t file_complete_block_count = (uint_fast64_t)0;
+    size_t        file_last_block_size      = (int)0;
+    off_t         null_offset               = (off_t)(-1);
+    int           open_flags                = O_RDWR;
+    bool          result                    = false;
+    struct stat   status_buffer;
+
+#ifndef __APPLE__  // Linux, etc.
+    open_flags |= O_LARGEFILE;
+#endif
+
+    descriptor = open_or_fail (pathname, open_flags);
+    (void)fstat_or_fail (descriptor, &status_buffer);
+
+    file_bytes                = status_buffer.st_size;
+    file_block_size           = status_buffer.st_blksize;
+    file_complete_block_count = file_bytes / file_block_size;
+    file_last_block_size      = file_bytes % file_block_size;
+
+    block = (char*)(alloca (file_block_size));
+
+    // First check whether the last non-null character is in an incomplete final
+    // block of the file
+    //
+    if (file_last_block_size != 0)
+    {
+        off_t scan_result
+            = scan_block (descriptor,
+                          file_block_size * file_complete_block_count,
+                          block,
+                          file_last_block_size);
+        if (scan_result >= 0)
+        {
+            null_offset = scan_result;
+        }
+    }
+
+    // If the last non-null character was not found in a final
+    // incomplete block, then walk backward through the complete
+    // blocks, looking for one containing the last non-null character
+    // in the file.
+    //
+    if (null_offset < 0)
+    {
+        int_fast64_t block_index = 0;
+
+        for (block_index = file_complete_block_count - 1;
+             block_index >= 0;
+             --block_index)
+        {
+            off_t scan_result = scan_block (descriptor,
+                                            block_index * file_block_size,
+                                            block,
+                                            file_block_size);
+            if (scan_result >= 0)
+            {
+                null_offset = scan_result;
+                break;
+            }
+        }
+    }
+
+    if (null_offset == -1)
+    {
+        null_offset = 0;
+    }
+
+    if (null_offset != file_bytes)
+    {
+        result = true;
+
+        if (options.dry_run == 0)
+        {
+            (void)ftruncate_or_fail (descriptor, null_offset);
+        }
+    }
+
+    (void)close_or_fail (descriptor);
+
+    return result;
+}
+
+//
 // usage
 //
 
@@ -662,6 +662,6 @@ static
 void
 version (void)
 {
-    printf ("%s, Version 1.0.0\n", Program_Name);
+    printf ("%s, Version 1.0.3\n", Program_Name);
     exit (EXIT_SUCCESS);
 }
