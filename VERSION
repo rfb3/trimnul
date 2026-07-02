@@ -1,3 +1,18 @@
+trimnul version 1.0.4
+Release date: 2026-07-01
+Description:
+Fixed an uninitialized `Options` struct in main() that could cause the
+default (non-dry-run) truncation behavior to silently no-op depending
+on stack garbage. Implemented `-v`/`--verbose` (now the default) and
+`-q`/`--quiet`, which previously had no effect. Replaced the unbounded
+`alloca()` scan buffer with a checked heap allocation. Fixed a
+`cursor_append` off-by-one that could silently drop the last byte of
+an appended diagnostic string. Fixed a signed/unsigned mismatch in
+`read_or_fail`'s short-read check. Fixed `open_flags_to_string`'s
+`O_RDONLY` detection, which could never fire because `O_RDONLY` is 0.
+Realigned the `trimnul` prototype/definition parameter indentation
+left over from the earlier rename.
+
 trimnul version 1.0.3
 Release date: 2026-07-01
 Description:

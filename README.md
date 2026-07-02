@@ -36,11 +36,13 @@ Perform a dry run to see what would change:
 
     trimnul --dry-run *.dat
 
-## Exit Codes
+## Exit codes
 
-  0 — All files processed successfully.  
-  1 — One or more files could not be opened or modified.  
-  2 — Invalid command-line usage.
+| Exit code | Description |
+|--------|-------------|
+| 0 | All files processed successfully. |
+| 1 | One or more files could not be opened or modified. |
+| 2 | Invalid command-line usage. |
 
 ## Versioning
 
@@ -53,7 +55,7 @@ Version tags in the Git repository follow the convention:
 
 Example:
 
-    trimnul/v1.0.3
+    trimnul/v1.0.4
 
 Each such tag marks a release of this program only, not of the entire monorepo.
 

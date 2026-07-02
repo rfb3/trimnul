@@ -17,6 +17,7 @@
 // lseek_or_fail
 // lseek_whence_to_string
 // main
+// malloc_or_fail
 // open_flags_to_string - non-reentrant / static state
 // open_or_fail
 // read_or_fail
@@ -33,7 +34,6 @@
 
 #include <getopt.h>
 
-#include <alloca.h>
 #include <fcntl.h>
 #include <stdbool.h>
 #include <stdint.h>
@@ -96,6 +96,10 @@ main (int    argument_count,
       char** argument_vector);
 
 static
+void*
+malloc_or_fail (size_t size);
+
+static
 const char*
 open_flags_to_string (int flags);
 
@@ -105,7 +109,7 @@ open_or_fail (char* pathname,
               int flags);
 
 static
-int
+ssize_t
 read_or_fail (int    descriptor,
               void*  block,
               size_t count);
@@ -120,7 +124,7 @@ scan_block (int    descriptor,
 static
 bool
 trimnul (Options options,
-                          char*   pathname);
+         char*   pathname);
 
 static
 void
@@ -167,7 +171,7 @@ cursor_append(char* cursor,
     char* result      = cursor;
     int   text_length = strlen (text);
 
-    if (text_length <= (*remaining_pointer))
+    if (text_length < (*remaining_pointer))
     {
         (void)snprintf (result, *remaining_pointer, "%s", text);
         result += text_length;
@@ -288,7 +292,10 @@ main (int    argument_count,
 {
     int getopt_result = 0;
 
-    Options options;
+    Options options = {
+        .dry_run = 0,
+        .verbose = 1,
+    };
 
     Program_Name = argument_vector [0];
     while (true)
@@ -384,13 +391,44 @@ main (int    argument_count,
 
         if (trimnul (options, argument) == 1)
         {
-            printf ("%s\n", argument);
+            if (options.verbose)
+            {
+                printf ("Truncated %s\n", argument);
+            }
+        }
+        else
+        {
+            if (options.verbose)
+            {
+                printf ("%s was unchanged\n", argument);
+            }
         }
     }
 
     return 0;
 }
 
+//
+// malloc_or_fail
+//
+
+static
+void*
+malloc_or_fail (size_t size)
+{
+    void* result = malloc (size);
+
+    if (result == (void*)NULL)
+    {
+        perror ("malloc(3): ");
+        fprintf (stderr, "%s:%d: In malloc_or_fail, malloc("
+                 "size=%zu) failed.\n",
+                 __FILE__, __LINE__, size);
+        exit (EXIT_FAILURE);
+    }
+    return result;
+}
+
 //
 // open_flags_to_string - non-reentrant / static state
 //
@@ -419,9 +457,30 @@ open_flags_to_string (int flags)
     bool  is_first  = true;
     int   remaining = OPEN_FLAGS_TO_STRING_BUFFER_SIZE;
 
-    MAYBE_APPEND_FLAG (O_RDONLY);
-    MAYBE_APPEND_FLAG (O_WRONLY);
-    MAYBE_APPEND_FLAG (O_RDWR);
+    switch (flags & O_ACCMODE)
+    {
+     case O_RDONLY:
+        cursor = cursor_append (cursor, "O_RDONLY", &remaining);
+        is_first = false;
+        break;
+     case O_WRONLY:
+        cursor = cursor_append (cursor, "O_WRONLY", &remaining);
+        is_first = false;
+        break;
+     case O_RDWR:
+        cursor = cursor_append (cursor, "O_RDWR", &remaining);
+        is_first = false;
+        break;
+     default:
+        {
+            char accmode_buffer [32];
+            snprintf (accmode_buffer, sizeof (accmode_buffer),
+                      "O_ACCMODE=0x%x", flags & O_ACCMODE);
+            cursor = cursor_append (cursor, accmode_buffer, &remaining);
+            is_first = false;
+        }
+        break;
+    }
 
     MAYBE_APPEND_FLAG (O_APPEND);
     MAYBE_APPEND_FLAG (O_ASYNC);
@@ -481,19 +540,19 @@ open_or_fail (char* pathname,
 //
 
 static
-int
+ssize_t
 read_or_fail (int    descriptor,
               void*  block,
               size_t count)
 {
-    int result = read (descriptor, block, count);
+    ssize_t result = read (descriptor, block, count);
 
-    if (result != count)
+    if (result < 0 || (size_t)result != count)
     {
         perror ("read(2): ");
         fprintf (stderr,
                  "%s:%d: In trimnul, "
-                 "read(2) returned %d when expecting %lu.\n",
+                 "read(2) returned %zd when expecting %zu.\n",
                  __FILE__, __LINE__, result, count);
         exit (EXIT_FAILURE);
     }
@@ -544,7 +603,7 @@ scan_block (int    descriptor,
 static
 bool
 trimnul (Options options,
-                          char*   pathname)
+         char*   pathname)
 {
     char*         block                     = (char*)NULL;
     int           descriptor                = (int)0;
@@ -570,7 +629,7 @@ trimnul (Options options,
     file_complete_block_count = file_bytes / file_block_size;
     file_last_block_size      = file_bytes % file_block_size;
 
-    block = (char*)(alloca (file_block_size));
+    block = (char*)(malloc_or_fail (file_block_size));
 
     // First check whether the last non-null character is in an incomplete final
     // block of the file
@@ -628,6 +687,7 @@ trimnul (Options options,
         }
     }
 
+    free (block);
     (void)close_or_fail (descriptor);
 
     return result;
@@ -646,7 +706,7 @@ usage (FILE* stream,
     fprintf (stream, "Arguments:\n     FILE... — One or more pathnames to regular files to process.\n\n");
     fprintf (stream, "Options:\n");
     fprintf (stream, "    -n, --dry-run     Show what changes would be made without modifying any files.\n");
-    fprintf (stream, "    -v, --verbose     Print details about each file examined.\n");
+    fprintf (stream, "    -v, --verbose     Print details about each file examined. [DEFAULT]\n");
     fprintf (stream, "    -q, --quiet       Suppress normal output; only report errors.\n");
     fprintf (stream, "    -h, --help        Display usage help.\n");
     fprintf (stream, "    -V, --version     Display program version.\n");
@@ -662,6 +722,6 @@ static
 void
 version (void)
 {
-    printf ("%s, Version 1.0.3\n", Program_Name);
+    printf ("%s, Version 1.0.4\n", Program_Name);
     exit (EXIT_SUCCESS);
 }
