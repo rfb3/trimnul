@@ -1,3 +1,12 @@
+trimnul version 1.0.3
+Release date: 2026-07-01
+Description:
+Renamed internal function eliminate_terminal_nulls to trimnul to match
+the program name; simplified the `working` git tag to just
+`working`. Moved test fixtures into their own directory. Added
+`.expected` files and expanded `test` target to use _cmp(1)_ to
+compare results with expectations.
+
 trimnul version 1.0.2
 Release date: 2026-07-01
 Description:
