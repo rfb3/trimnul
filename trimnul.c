@@ -1,13 +1,13 @@
 //
 // trimnul.c - truncates any NUL (0) bytes off end of file
 //
-␌
+
 //
 // Table of Contents
 //
-// This file uses Unicode "form feed" characters (U+240C) to delineate logical
-// pages. This table of contents is collected from the first non-blank lines
-// on each logical page.
+// This file uses the ASCII "form feed" character (Control-L) to delineate
+// logical pages. This table of contents is collected from the first non-blank
+// lines on each logical page.
 //
 
 // trimnul.c - truncates any NUL (0) bytes off end of file
@@ -29,7 +29,7 @@
 // trimnul
 // usage
 // version
-␌
+
 //
 // Headers, etc
 //
@@ -60,7 +60,7 @@ Options;
 
 
 static char* Program_Name = (char*)NULL;
-␌
+
 //
 // Function prototypes
 //
@@ -138,7 +138,7 @@ usage (FILE* stream,
 static
 void
 version (void);
-␌
+
 //
 // close_or_fail
 //
@@ -161,7 +161,7 @@ close_or_fail (int descriptor)
 
     return result;
 }
-␌
+
 //
 // cursor_append
 //
@@ -192,7 +192,7 @@ cursor_append(char* cursor,
 
     return result;
 }
-␌
+
 //
 // fstat_or_fail
 //
@@ -215,7 +215,7 @@ fstat_or_fail (int          descriptor,
     }
     return result;
 }
-␌
+
 //
 // ftruncate_or_fail
 //
@@ -237,7 +237,7 @@ ftruncate_or_fail (int   descriptor,
     }
     return result;
 }
-␌
+
 //
 // lseek_or_fail
 //
@@ -261,7 +261,7 @@ lseek_or_fail (int   descriptor,
     }
     return result;
 }
-␌
+
 //
 // lseek_whence_to_string
 //
@@ -285,7 +285,7 @@ lseek_whence_to_string (int whence)
     }
     return result;
 }
-␌
+
 //
 // main
 //
@@ -411,7 +411,7 @@ main (int    argument_count,
 
     return 0;
 }
-␌
+
 //
 // malloc_or_fail
 //
@@ -432,7 +432,7 @@ malloc_or_fail (size_t size)
     }
     return result;
 }
-␌
+
 //
 // open_flags_to_string - non-reentrant / static state
 //
@@ -515,7 +515,7 @@ open_flags_to_string (int flags)
 }
 
 #undef MAYBE_APPEND_FLAG
-␌
+
 //
 // open_or_fail
 //
@@ -538,7 +538,7 @@ open_or_fail (char* pathname,
     }
     return result;
 }
-␌
+
 //
 // read_or_fail
 //
@@ -563,7 +563,7 @@ read_or_fail (int    descriptor,
 
     return result;
 }
-␌
+
 //
 // scan_block
 //
@@ -599,7 +599,7 @@ scan_block (int    descriptor,
 
     return result;
 }
-␌
+
 //
 // trimnul
 //
@@ -696,7 +696,7 @@ trimnul (Options options,
 
     return result;
 }
-␌
+
 //
 // usage
 //
@@ -717,7 +717,7 @@ usage (FILE* stream,
 
     exit (exit_status);
 }
-␌
+
 //
 // version
 //
