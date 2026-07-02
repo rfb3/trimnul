@@ -18,11 +18,13 @@ FILE... — One or more pathnames to regular files to process.
 
 ### Options
 
-  -n, --dry-run     Show what changes would be made without modifying any files.
-  -v, --verbose     Print details about each file examined.
-  -q, --quiet       Suppress normal output; only report errors.
-  -h, --help        Display usage help.
-  -V, --version     Display program version.
+| Option | Description |
+|--------|-------------|
+| `-n`, `--dry-run` | Show what changes would be made without modifying any files. |
+| `-v`, `--verbose` | Print details about each file examined. |
+| `-q`, `--quiet` | Suppress normal output; only report errors. |
+| `-h`, `--help` | Display usage help. |
+| `-V`, `--version` | Display program version. |
 
 ## Examples
 
