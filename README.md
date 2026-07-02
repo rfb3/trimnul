@@ -8,6 +8,16 @@ This tool is useful when working with files that have been corrupted
 or produced by buggy software that appends unnecessary null bytes at
 the end of file.
 
+## Building
+
+```sh
+make            # builds ./trimnul
+make test       # builds, then runs ./trimnul with test args
+make install    # installs to $HOME/bin
+make clean      # remove the binary and object files
+make distclean  # Do `clean` plus potentially more
+```
+
 ## Usage
 
     trimnul [OPTIONS] FILE...
