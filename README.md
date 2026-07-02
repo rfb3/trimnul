@@ -8,16 +8,6 @@ This tool is useful when working with files that have been corrupted
 or produced by buggy software that appends unnecessary null bytes at
 the end of file.
 
-## Building
-
-```sh
-make            # builds ./trimnul
-make test       # builds, then runs ./trimnul with test args
-make install    # installs to $HOME/bin
-make clean      # remove the binary and object files
-make distclean  # Do `clean` plus potentially more
-```
-
 ## Usage
 
     trimnul [OPTIONS] FILE...
@@ -54,6 +44,16 @@ Perform a dry run to see what would change:
 | 1 | One or more files could not be opened or modified. |
 | 2 | Invalid command-line usage. |
 
+## Building
+
+```sh
+make            # builds ./trimnul
+make test       # builds, then runs ./trimnul with test args
+make install    # installs to $HOME/bin
+make clean      # remove the binary and object files
+make distclean  # Do `clean` plus potentially more
+```
+
 ## Versioning
 
 The current version of this program is recorded in the file named VERSION
@@ -66,8 +66,6 @@ Version tags in the Git repository follow the convention:
 Example:
 
     trimnul/v1.0.5
-
-Each such tag marks a release of this program only, not of the entire monorepo.
 
 ## Repo notes
 
