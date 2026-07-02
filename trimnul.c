@@ -5,6 +5,10 @@
 //
 // Table of Contents
 //
+// This file uses Unicode "form feed" characters (U+240C) to delineate logical
+// pages. This table of contents is collected from the first non-blank lines
+// on each logical page.
+//
 
 // trimnul.c - truncates any NUL (0) bytes off end of file
 // Table of Contents
