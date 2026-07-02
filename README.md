@@ -55,7 +55,7 @@ Version tags in the Git repository follow the convention:
 
 Example:
 
-    trimnul/v1.0.4
+    trimnul/v1.0.5
 
 Each such tag marks a release of this program only, not of the entire monorepo.
 

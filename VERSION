@@ -1,3 +1,12 @@
+trimnul version 1.0.5
+Release date: 2026-07-01
+Description:
+Quieted `make test`: it now runs silently through the fixtures in a
+loop, printing "All tests passed." on success, or stopping
+immediately with `cmp`'s diagnostic on the first failure. Documented
+the form-feed-delineated table-of-contents convention at the top of
+`trimnul.c`.
+
 trimnul version 1.0.4
 Release date: 2026-07-01
 Description:
