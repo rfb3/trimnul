@@ -22,11 +22,14 @@ install:	trimnul
 	install trimnul ~/bin
 
 test:	trimnul
-	cp foo.test foo
-	cp bar.test bar
-	cp baz.test baz
+	cp fixtures/foo.test foo
+	cp fixtures/bar.test bar
+	cp fixtures/baz.test baz
 	./trimnul foo bar baz
+	cmp foo fixtures/foo.expected
+	cmp bar fixtures/bar.expected
+	cmp baz fixtures/baz.expected
 
 working:
-	$(GIT) tag -f 'src/c/trimnul#working'
+	$(GIT) tag -f working
 	$(GIT) push --tags -f
