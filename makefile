@@ -22,13 +22,13 @@ install:	trimnul
 	install trimnul ~/bin
 
 test:	trimnul
-	cp fixtures/foo.test foo
-	cp fixtures/bar.test bar
-	cp fixtures/baz.test baz
-	./trimnul foo bar baz
-	cmp foo fixtures/foo.expected
-	cmp bar fixtures/bar.expected
-	cmp baz fixtures/baz.expected
+	@set -e; \
+	for f in foo bar baz; do \
+		cp fixtures/$$f.test $$f; \
+		./trimnul $$f > /dev/null; \
+		cmp $$f fixtures/$$f.expected; \
+	done; \
+	echo "All tests passed."
 
 working:
 	$(GIT) tag -f working
