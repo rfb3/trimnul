@@ -1,6 +1,6 @@
-# eliminate_terminal_nulls
+# trimnul
 
-eliminate_terminal_nulls is a Unix-style command-line utility that
+trimnul is a Unix-style command-line utility that
 scans one or more files and removes any trailing NUL ('\0') bytes
 found at the ends of those files.
 
@@ -10,7 +10,7 @@ the end of file.
 
 ## Usage
 
-    eliminate_terminal_nulls [OPTIONS] FILE...
+    trimnul [OPTIONS] FILE...
 
 ### Arguments
 
@@ -28,11 +28,11 @@ FILE... — One or more pathnames to regular files to process.
 
 Remove trailing null bytes from all files in the current directory:
 
-    eliminate_terminal_nulls *
+    trimnul *
 
 Perform a dry run to see what would change:
 
-    eliminate_terminal_nulls --dry-run *.dat
+    trimnul --dry-run *.dat
 
 ## Exit Codes
 
@@ -47,18 +47,34 @@ in the same directory as this README.
 
 Version tags in the Git repository follow the convention:
 
-    eliminate_terminal_nulls/vMAJOR.MINOR.PATCH
+    trimnul/vMAJOR.MINOR.PATCH
 
 Example:
 
-    eliminate_terminal_nulls/v1.0.0
+    trimnul/v1.0.2
 
 Each such tag marks a release of this program only, not of the entire monorepo.
 
+## Repo notes
+
+This was originally called `eliminate_terminal_nulls` and then renamed
+to be `trimnul`. Git history tracking is less than ideal here and
+--follow is apparently insufficient. However, there _is_ a full
+history and git can be compelled to show it with commands like:
+
+```
+$ git log --all --graph --decorate --oneline --name-status --find-renames -- c/eliminate_terminal_nulls c/trimnul
+```
+
 ## License
 
-Placed in the Public Domain by Rick Busdiecker on 12 October 2025
+Placed in the
+[Public Domain](https://en.wikipedia.org/wiki/Public_domain)
+by Rick Busdiecker on 12 October 2025.
 
 ## See Also
 
-tr(1), dd(1), hexdump(1), od(1)
+[dd(1)](https://www.man7.org/linux/man-pages/man1/dd.1.html),
+[hexdump(1)](https://www.man7.org/linux/man-pages/man1/hexdump.1.html),
+[od(1)](https://www.man7.org/linux/man-pages/man1/od.1.html),
+[tr(1)](https://www.man7.org/linux/man-pages/man1/tr.1.html)
