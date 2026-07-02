@@ -726,6 +726,6 @@ static
 void
 version (void)
 {
-    printf ("%s, Version 1.0.4\n", Program_Name);
+    printf ("%s, Version 1.0.5\n", Program_Name);
     exit (EXIT_SUCCESS);
 }
